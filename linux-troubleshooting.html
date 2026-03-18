@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux Server Troubleshooting & Installation Guide</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#080b10;color:#e2e8f0;min-height:100vh}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#0f1623 0%,#111827 100%);border-bottom:1px solid #1e2d40;padding:18px 24px 14px}
+.hdr-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.hdr h1{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:.3px}
+.hdr h1 span{color:#38bdf8}
+.hdr p{font-size:11px;color:#64748b;margin-top:4px;line-height:1.6}
+
+/* PLATFORM EXPLAINER */
+.platform-bar{background:#0d1117;border-bottom:1px solid #1e2d40;padding:10px 24px;display:flex;gap:16px;flex-wrap:wrap}
+.plat{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:6px;border:1px solid;font-size:11px}
+.plat-linux{border-color:#38bdf8;background:#071520}
+.plat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.plat-linux .plat-dot{background:#38bdf8}
+.plat strong{color:#f1f5f9;display:block;font-size:11px;font-weight:700}
+.plat span{color:#94a3b8;font-size:10px}
+
+/* CONTROLS */
+.controls{padding:8px 24px 6px;background:#0a0d14;border-bottom:1px solid #1a2035;display:flex;flex-direction:column;gap:6px;position:sticky;top:var(--scen-h,44px);z-index:100}
+.controls-row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.controls-row2{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding-bottom:2px}
+.srch-wrap{position:relative;display:inline-flex;align-items:center}
+.controls input{background:#161b27;border:1px solid #1e2d40;border-radius:5px;padding:7px 32px 7px 12px;color:#e2e8f0;font-size:12px;outline:none;width:280px;transition:border-color .2s}
+.controls input:focus{border-color:#38bdf8}
+.controls input::placeholder{color:#4b5563}
+.srch-clear{position:absolute;right:8px;background:none;border:none;color:#4b5563;cursor:pointer;font-size:14px;line-height:1;padding:0;display:none}
+.srch-clear:hover{color:#e2e8f0}
+.srch-wrap:has(input:not(:placeholder-shown)) .srch-clear{display:block}
+.filt{font-size:10px;padding:5px 12px;border-radius:4px;border:1px solid #1e2d40;background:#161b27;color:#64748b;cursor:pointer;font-family:monospace;transition:all .15s;font-weight:600}
+.filt.on{background:#0c1e35;border-color:#38bdf8;color:#7dd3fc}
+.sep{width:1px;height:20px;background:#1e2d40;margin:0 2px}
+.stats{margin-left:auto;font-size:10px;color:#4b5563;font-family:monospace;white-space:nowrap}
+
+/* MAIN LAYOUT */
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 180px)}
+
+/* SIDEBAR INDEX */
+.sidebar{background:#0a0d14;border-right:1px solid #1a2035;padding:16px 0;position:sticky;top:var(--sticky-total,96px);height:calc(100vh - var(--sticky-total,96px));overflow-y:auto}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-track{background:#0a0d14}
+.sidebar::-webkit-scrollbar-thumb{background:#1e2d40;border-radius:2px}
+.sidebar h3{font-size:9px;font-weight:700;color:#4b5563;letter-spacing:1.5px;padding:4px 16px 8px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;border-left:2px solid transparent;transition:all .15s;text-decoration:none}
+.nav-item:hover{background:#111827;border-left-color:#38bdf8}
+.nav-item.active{background:#0c1e35;border-left-color:#38bdf8}
+.nav-icon{font-size:13px;width:18px;text-align:center;flex-shrink:0}
+.nav-text{font-size:11px;color:#94a3b8;font-weight:500;line-height:1.3}
+.nav-item:hover .nav-text,.nav-item.active .nav-text{color:#e2e8f0}
+.nav-count{margin-left:auto;font-size:9px;font-family:monospace;background:#1e2d40;padding:1px 5px;border-radius:3px;color:#64748b;flex-shrink:0}
+
+/* CONTENT */
+.content{padding:20px 24px;overflow-y:auto}
+
+/* SECTION */
+.section{margin-bottom:28px;scroll-margin-top:var(--sticky-total,96px)}
+.sec-hdr{display:flex;align-items:center;gap:12px;padding:14px 18px;background:#0d1117;border:1px solid #1e2d40;border-radius:10px 10px 0 0;cursor:pointer;user-select:none}
+.sec-hdr:hover{background:#111827}
+.sec-icon{font-size:18px;width:28px;text-align:center}
+.sec-meta{flex:1}
+.sec-title{font-size:14px;font-weight:700;color:#f1f5f9}
+.sec-sub{font-size:11px;color:#64748b;margin-top:2px}
+.sec-arr{font-size:11px;color:#4b5563;transition:transform .2s;flex-shrink:0}
+.sec-arr.open{transform:rotate(180deg)}
+.sec-qcount{font-size:10px;font-family:monospace;background:#1e2d40;color:#64748b;border-radius:10px;padding:2px 9px;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.sec-qcount.has-q{background:#0c1e35;border:1px solid #1e3a5a;color:#7dd3fc}
+.sec-body{border:1px solid #1e2d40;border-top:none;border-radius:0 0 10px 10px;display:none}
+.sec-body.open{display:block}
+
+/* QUERY CARD */
+.qcard{border-bottom:1px solid #0f141e;padding:16px}
+.qcard:last-child{border-bottom:none}
+.qcard-hdr{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.qcard-num{min-width:24px;height:24px;border-radius:50%;background:#1e2d40;color:#94a3b8;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-family:monospace}
+.qcard-meta{flex:1}
+.qcard-title{font-size:13px;font-weight:600;color:#f1f5f9;line-height:1.4}
+.qcard-tags{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.tag{font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;border:1px solid;font-family:monospace}
+.tag-network{color:#38bdf8;border-color:#38bdf8;background:#071520}
+.tag-server{color:#f97316;border-color:#f97316;background:#1a0800}
+.tag-apache{color:#a78bfa;border-color:#a78bfa;background:#0d0820}
+.tag-nginx{color:#22c55e;border-color:#22c55e;background:#071507}
+.tag-php{color:#ef4444;border-color:#ef4444;background:#1a0505}
+.tag-fpm{color:#f59e0b;border-color:#f59e0b;background:#1a1000}
+.tag-os{color:#94a3b8;border-color:#94a3b8;background:#0a0d14}
+.tag-kernel{color:#e879f9;border-color:#e879f9;background:#1a0020}
+.tag-pma{color:#38bdf8;border-color:#38bdf8;background:#071520}
+.tag-perm{color:#a78bfa;border-color:#a78bfa;background:#0d0820}
+.tag-install{color:#22c55e;border-color:#22c55e;background:#071507}
+
+.use-case{background:#071520;border-left:3px solid #38bdf8;padding:8px 12px;border-radius:0 4px 4px 0;margin-bottom:10px;font-size:11px;color:#7dd3fc;line-height:1.6}
+.use-case strong{color:#bae6fd;display:block;font-size:10px;font-weight:700;letter-spacing:.5px;margin-bottom:2px;font-family:monospace}
+
+code.block{display:block;background:#060a12;border:1px solid #1e2d40;border-radius:6px;padding:12px 14px;font-family:'Courier New',monospace;font-size:11px;color:#7dd3fc;line-height:1.7;overflow-x:auto;white-space:pre;margin-bottom:8px}
+.code-wrap{position:relative;margin-bottom:8px}
+.copy-btn{font-size:9px;padding:3px 10px;border-radius:3px;background:#1e2d40;border:1px solid #2e3d50;color:#94a3b8;cursor:pointer;font-family:monospace;position:absolute;top:8px;right:8px;transition:all .15s;z-index:1}
+.copy-btn:hover{background:#2e3d50;color:#f1f5f9}
+.copy-btn.copied{background:#0d2e1a;border-color:#22c55e;color:#22c55e}
+
+.thresh-strip{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:#090f0a;border:1px solid #1a2d1a;border-radius:4px;padding:5px 10px;margin:4px 0 6px;font-size:9px;font-family:monospace}
+.thresh-strip-lbl{color:#4b5563;font-weight:700;letter-spacing:.5px;margin-right:2px;white-space:nowrap}
+.ts-good{color:#22c55e}.ts-warn{color:#f59e0b}.ts-crit{color:#ef4444}
+.thresh-strip-sep{color:#1e2d40;padding:0 2px}
+.tip{background:#0d1a0d;border-left:3px solid #22c55e;padding:7px 12px;border-radius:0 4px 4px 0;font-size:11px;color:#86efac;line-height:1.6;margin-top:6px}
+.tip strong{color:#bbf7d0;font-size:10px;font-weight:700;letter-spacing:.5px;font-family:monospace;display:block;margin-bottom:2px}
+.warn{background:#1a0d00;border-left:3px solid #f97316;padding:7px 12px;border-radius:0 4px 4px 0;font-size:11px;color:#fdba74;line-height:1.6;margin-top:6px}
+.warn strong{color:#fed7aa;font-size:10px;font-weight:700;letter-spacing:.5px;font-family:monospace;display:block;margin-bottom:2px}
+
+.plat-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;border:1px solid;margin-left:auto;flex-shrink:0;font-family:monospace}
+.plat-badge.linux{color:#38bdf8;border-color:#38bdf8;background:#071520}
+.plat-badge+.plat-badge{margin-left:4px}
+
+/* NO RESULTS */
+.no-results{text-align:center;padding:48px 24px;color:#4b5563;font-size:13px;display:none}
+.no-results-title{font-size:15px;font-weight:700;color:#64748b;margin-bottom:8px}
+.no-results-sub{font-size:11px;color:#374151;margin-bottom:20px;line-height:1.7}
+.no-results-suggest{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:20px}
+.no-results-suggest .preset{font-size:10px}
+.no-results-tip{font-size:10px;color:#1e2d40;font-family:monospace;background:#0a0d14;border:1px solid #1a2035;border-radius:6px;padding:10px 16px;display:inline-block;text-align:left;line-height:1.8}
+
+/* MOBILE NAV BAR */
+.mobile-nav{display:none;overflow-x:auto;white-space:nowrap;padding:8px 16px;background:#0a0d14;border-bottom:1px solid #1a2035;gap:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:sticky;top:var(--scen-ctrl-h,96px);z-index:99}
+.mobile-nav::-webkit-scrollbar{display:none}
+.mobile-nav a{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1px solid #1e2d40;background:#0d1117;color:#64748b;font-size:10px;font-family:monospace;font-weight:600;text-decoration:none;white-space:nowrap;transition:all .15s}
+.mobile-nav a:hover,.mobile-nav a.active{background:#0c1e35;border-color:#38bdf8;color:#7dd3fc}
+
+@media(max-width:768px){
+.layout{grid-template-columns:1fr}
+.sidebar{display:none}
+.mobile-nav{display:flex}
+}
+
+@media print{
+body{background:#fff;color:#000}
+.hdr,.platform-bar,.controls,.sidebar,.mobile-nav{display:none}
+.layout{grid-template-columns:1fr}
+.content{padding:0}
+.section{margin-bottom:20px}
+.sec-hdr,.sec-body{border:none;border-radius:0}
+.sec-body{display:block}
+.qcard{border-bottom:1px solid #ccc;padding:12px 0}
+code.block{background:#f5f5f5;border:1px solid #ccc;color:#000}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-top">
+    <div>
+      <h1>Linux Server <span>Troubleshooting</span> & Installation Guide</h1>
+      <p>Comprehensive commands, checks, and solutions for common Linux server issues, including network, services, permissions, and installations.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PLATFORM EXPLAINER -->
+<div class="platform-bar">
+  <div class="plat plat-linux">
+    <div class="plat-dot"></div>
+    <div>
+      <strong>Linux</strong>
+      <span>Ubuntu/Debian</span>
+    </div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="controls-row1">
+    <div class="srch-wrap">
+      <input type="text" id="searchInput" placeholder="Search commands, issues, solutions...">
+      <button class="srch-clear" onclick="clearSearch()">×</button>
+    </div>
+    <button class="filt" data-filter="network" onclick="toggleFilter(this)">Network</button>
+    <button class="filt" data-filter="server" onclick="toggleFilter(this)">Server</button>
+    <button class="filt" data-filter="apache" onclick="toggleFilter(this)">Apache2</button>
+    <button class="filt" data-filter="nginx" onclick="toggleFilter(this)">Nginx</button>
+    <button class="filt" data-filter="php" onclick="toggleFilter(this)">PHP</button>
+    <button class="filt" data-filter="fpm" onclick="toggleFilter(this)">FPM</button>
+    <button class="filt" data-filter="os" onclick="toggleFilter(this)">OS</button>
+    <button class="filt" data-filter="kernel" onclick="toggleFilter(this)">Kernel</button>
+    <button class="filt" data-filter="pma" onclick="toggleFilter(this)">phpMyAdmin</button>
+    <button class="filt" data-filter="perm" onclick="toggleFilter(this)">Permissions</button>
+    <button class="filt" data-filter="install" onclick="toggleFilter(this)">Installation</button>
+  </div>
+  <div class="controls-row2">
+    <span class="stats" id="stats">0 commands loaded</span>
+  </div>
+</div>
+
+<!-- MOBILE NAV BAR -->
+<nav class="mobile-nav" id="mobileNav">
+  <a href="#sec-network" onclick="setActive(this)">🌐 Network</a>
+  <a href="#sec-server" onclick="setActive(this)">🖥️ Server</a>
+  <a href="#sec-apache" onclick="setActive(this)">🔧 Apache2</a>
+  <a href="#sec-nginx" onclick="setActive(this)">🌊 Nginx</a>
+  <a href="#sec-php" onclick="setActive(this)">🐘 PHP</a>
+  <a href="#sec-fpm" onclick="setActive(this)">⚡ FPM</a>
+  <a href="#sec-os" onclick="setActive(this)">💻 OS</a>
+  <a href="#sec-kernel" onclick="setActive(this)">🧠 Kernel</a>
+  <a href="#sec-pma" onclick="setActive(this)">🗄️ phpMyAdmin</a>
+  <a href="#sec-perm" onclick="setActive(this)">🔑 Permissions</a>
+  <a href="#sec-install" onclick="setActive(this)">📦 Installation</a>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <h3>Sections</h3>
+  <a class="nav-item" href="#sec-network" onclick="setActive(this)">
+    <span class="nav-icon">🌐</span>
+    <span class="nav-text">Network Issues</span>
+    <span class="nav-count">5</span>
+  </a>
+  <a class="nav-item" href="#sec-server" onclick="setActive(this)">
+    <span class="nav-icon">🖥️</span>
+    <span class="nav-text">Server Issues</span>
+    <span class="nav-count">4</span>
+  </a>
+  <a class="nav-item" href="#sec-apache" onclick="setActive(this)">
+    <span class="nav-icon">🔧</span>
+    <span class="nav-text">Apache2 Issues</span>
+    <span class="nav-count">3</span>
+  </a>
+  <a class="nav-item" href="#sec-nginx" onclick="setActive(this)">
+    <span class="nav-icon">🌊</span>
+    <span class="nav-text">Nginx Issues</span>
+    <span class="nav-count">4</span>
+  </a>
+  <a class="nav-item" href="#sec-php" onclick="setActive(this)">
+    <span class="nav-icon">🐘</span>
+    <span class="nav-text">PHP Issues</span>
+    <span class="nav-count">3</span>
+  </a>
+  <a class="nav-item" href="#sec-fpm" onclick="setActive(this)">
+    <span class="nav-icon">⚡</span>
+    <span class="nav-text">FPM Issues</span>
+    <span class="nav-count">2</span>
+  </a>
+  <a class="nav-item" href="#sec-os" onclick="setActive(this)">
+    <span class="nav-icon">💻</span>
+    <span class="nav-text">OS Issues</span>
+    <span class="nav-count">3</span>
+  </a>
+  <a class="nav-item" href="#sec-kernel" onclick="setActive(this)">
+    <span class="nav-icon">🧠</span>
+    <span class="nav-text">Kernel Issues</span>
+    <span class="nav-count">2</span>
+  </a>
+  <a class="nav-item" href="#sec-pma" onclick="setActive(this)">
+    <span class="nav-icon">🗄️</span>
+    <span class="nav-text">phpMyAdmin Issues</span>
+    <span class="nav-count">2</span>
+  </a>
+  <a class="nav-item" href="#sec-perm" onclick="setActive(this)">
+    <span class="nav-icon">🔑</span>
+    <span class="nav-text">Permissions</span>
+    <span class="nav-count">3</span>
+  </a>
+  <a class="nav-item" href="#sec-install" onclick="setActive(this)">
+    <span class="nav-icon">📦</span>
+    <span class="nav-text">Installation</span>
+    <span class="nav-count">1</span>
+  </a>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div class="content" id="mainContent">
+
+<!-- ═══════════════ NETWORK ISSUES ═══════════════ -->
+<div class="section" id="sec-network" data-cat="network">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">🌐</span>
+  <div class="sec-meta">
+    <div class="sec-title">Network Issues</div>
+    <div class="sec-sub">Check connectivity, DNS, routing, and network configuration problems</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">5</span>
+</div>
+<div class="sec-body open">
+<div class="qcard" data-tags="network">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Network Interfaces and IP Addresses</div>
+      <div class="qcard-tags">
+        <span class="tag tag-network">Network</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Check IP</strong>
+    Display all network interfaces and their IP addresses to verify connectivity.
+  </div>
+  <div class="code-wrap">
+    <code class="block">ip addr show</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If no IP is assigned, use <code>sudo dhclient -r && sudo dhclient</code> to release and renew DHCP lease.
+  </div>
+</div>
+
+<div class="qcard" data-tags="network">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Test Connectivity to External Host</div>
+      <div class="qcard-tags">
+        <span class="tag tag-network">Network</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Ping Test</strong>
+    Test network connectivity to a known external host like Google DNS.
+  </div>
+  <div class="code-wrap">
+    <code class="block">ping -c 4 8.8.8.8</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    If ping fails, check firewall rules with <code>sudo ufw status</code> or restart network service <code>sudo systemctl restart networking</code>.
+  </div>
+</div>
+
+<div class="qcard" data-tags="network">
+  <div class="qcard-hdr">
+    <span class="qcard-num">3</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check DNS Resolution</div>
+      <div class="qcard-tags">
+        <span class="tag tag-network">Network</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>DNS Lookup</strong>
+    Verify DNS resolution is working properly.
+  </div>
+  <div class="code-wrap">
+    <code class="block">nslookup google.com</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If DNS fails, check /etc/resolv.conf for nameservers or add <code>nameserver 8.8.8.8</code> to the file.
+  </div>
+</div>
+
+<div class="qcard" data-tags="network">
+  <div class="qcard-hdr">
+    <span class="qcard-num">4</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Routing Table</div>
+      <div class="qcard-tags">
+        <span class="tag tag-network">Network</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Route Table</strong>
+    Display the kernel routing table to check default gateway.
+  </div>
+  <div class="code-wrap">
+    <code class="block">ip route show</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If default route is missing, add it with <code>sudo ip route add default via GATEWAY_IP</code>.
+  </div>
+</div>
+
+<div class="qcard" data-tags="network">
+  <div class="qcard-hdr">
+    <span class="qcard-num">5</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Open Ports and Listening Services</div>
+      <div class="qcard-tags">
+        <span class="tag tag-network">Network</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Netstat</strong>
+    List all listening ports and associated services.
+  </div>
+  <div class="code-wrap">
+    <code class="block">netstat -tlnp</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If a service isn't listening, check its status with <code>sudo systemctl status service_name</code> and restart if needed.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ SERVER ISSUES ═══════════════ -->
+<div class="section" id="sec-server" data-cat="server">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">🖥️</span>
+  <div class="sec-meta">
+    <div class="sec-title">Server Issues</div>
+    <div class="sec-sub">General server health, resource usage, and system status checks</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">4</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="server">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check System Load and Uptime</div>
+      <div class="qcard-tags">
+        <span class="tag tag-server">Server</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Load Average</strong>
+    Check system load, uptime, and number of users.
+  </div>
+  <div class="code-wrap">
+    <code class="block">uptime</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    If load is high (> number of CPUs), use <code>top</code> or <code>htop</code> to identify resource-intensive processes.
+  </div>
+</div>
+
+<div class="qcard" data-tags="server">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Disk Usage</div>
+      <div class="qcard-tags">
+        <span class="tag tag-server">Server</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Disk Space</strong>
+    Check disk usage for all mounted filesystems.
+  </div>
+  <div class="code-wrap">
+    <code class="block">df -h</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    If disk is full, use <code>du -sh /*</code> to find large directories, then clean up or expand storage.
+  </div>
+</div>
+
+<div class="qcard" data-tags="server">
+  <div class="qcard-hdr">
+    <span class="qcard-num">3</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Memory Usage</div>
+      <div class="qcard-tags">
+        <span class="tag tag-server">Server</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Memory Info</strong>
+    Display memory usage statistics.
+  </div>
+  <div class="code-wrap">
+    <code class="block">free -h</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If memory is low, check for memory leaks with <code>ps aux --sort=-%mem | head</code> or add swap space.
+  </div>
+</div>
+
+<div class="qcard" data-tags="server">
+  <div class="qcard-hdr">
+    <span class="qcard-num">4</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check System Services Status</div>
+      <div class="qcard-tags">
+        <span class="tag tag-server">Server</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Service Status</strong>
+    Check if critical services are running.
+  </div>
+  <div class="code-wrap">
+    <code class="block">systemctl status nginx php8.3-fpm</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If a service is failed, check logs with <code>journalctl -u service_name</code> and restart with <code>sudo systemctl restart service_name</code>.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ APACHE2 ISSUES ═══════════════ -->
+<div class="section" id="sec-apache" data-cat="apache">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">🔧</span>
+  <div class="sec-meta">
+    <div class="sec-title">Apache2 Issues</div>
+    <div class="sec-sub">Common Apache web server configuration and runtime problems</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">3</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="apache">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Apache Configuration Syntax</div>
+      <div class="qcard-tags">
+        <span class="tag tag-apache">Apache2</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Config Test</strong>
+    Test Apache configuration for syntax errors.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo apache2ctl configtest</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    If syntax errors found, check the error message and fix the configuration file, then reload Apache.
+  </div>
+</div>
+
+<div class="qcard" data-tags="apache">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Apache Error Logs</div>
+      <div class="qcard-tags">
+        <span class="tag tag-apache">Apache2</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Error Log</strong>
+    View recent Apache error log entries.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo tail -f /var/log/apache2/error.log</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Analyze error messages to identify issues like permission problems or misconfigurations.
+  </div>
+</div>
+
+<div class="qcard" data-tags="apache">
+  <div class="qcard-hdr">
+    <span class="qcard-num">3</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Apache Modules</div>
+      <div class="qcard-tags">
+        <span class="tag tag-apache">Apache2</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Loaded Modules</strong>
+    List all loaded Apache modules.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo apache2ctl -M</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Enable missing modules with <code>sudo a2enmod module_name</code> and restart Apache.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ NGINX ISSUES ═══════════════ -->
+<div class="section" id="sec-nginx" data-cat="nginx">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">🌊</span>
+  <div class="sec-meta">
+    <div class="sec-title">Nginx Issues</div>
+    <div class="sec-sub">Nginx web server configuration, performance, and error troubleshooting</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">4</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="nginx">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Test Nginx Configuration</div>
+      <div class="qcard-tags">
+        <span class="tag tag-nginx">Nginx</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Config Test</strong>
+    Check Nginx configuration for syntax errors.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo nginx -t</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    Fix any syntax errors shown in the output, then reload Nginx with <code>sudo nginx -s reload</code>.
+  </div>
+</div>
+
+<div class="qcard" data-tags="nginx">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Nginx Error Logs</div>
+      <div class="qcard-tags">
+        <span class="tag tag-nginx">Nginx</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Error Log</strong>
+    View recent Nginx error log entries.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo tail -f /var/log/nginx/error.log</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Look for specific error messages and address them (e.g., permission issues, missing files).
+  </div>
+</div>
+
+<div class="qcard" data-tags="nginx">
+  <div class="qcard-hdr">
+    <span class="qcard-num">3</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Nginx Process Status</div>
+      <div class="qcard-tags">
+        <span class="tag tag-nginx">Nginx</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Process Check</strong>
+    Verify Nginx processes are running.
+  </div>
+  <div class="code-wrap">
+    <code class="block">ps aux | grep nginx</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If no processes running, start Nginx with <code>sudo systemctl start nginx</code>.
+  </div>
+</div>
+
+<div class="qcard" data-tags="nginx">
+  <div class="qcard-hdr">
+    <span class="qcard-num">4</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Nginx Access Logs</div>
+      <div class="qcard-tags">
+        <span class="tag tag-nginx">Nginx</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Access Log</strong>
+    View recent access log entries for traffic analysis.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo tail -f /var/log/nginx/access.log</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Analyze access patterns to identify potential issues like excessive requests or errors.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ PHP ISSUES ═══════════════ -->
+<div class="section" id="sec-php" data-cat="php">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">🐘</span>
+  <div class="sec-meta">
+    <div class="sec-title">PHP Issues</div>
+    <div class="sec-sub">PHP configuration, extensions, and runtime error troubleshooting</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">3</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="php">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check PHP Version and Configuration</div>
+      <div class="qcard-tags">
+        <span class="tag tag-php">PHP</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>PHP Info</strong>
+    Display PHP version and configuration details.
+  </div>
+  <div class="code-wrap">
+    <code class="block">php -v</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Ensure the correct PHP version is installed and configured for your application.
+  </div>
+</div>
+
+<div class="qcard" data-tags="php">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check PHP Error Logs</div>
+      <div class="qcard-tags">
+        <span class="tag tag-php">PHP</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>PHP Errors</strong>
+    View PHP error log for debugging.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo tail -f /var/log/php8.3-fpm.log</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    Address error messages like memory limits, timeouts, or missing extensions.
+  </div>
+</div>
+
+<div class="qcard" data-tags="php">
+  <div class="qcard-hdr">
+    <span class="qcard-num">3</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Loaded PHP Extensions</div>
+      <div class="qcard-tags">
+        <span class="tag tag-php">PHP</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Extensions</strong>
+    List all loaded PHP extensions.
+  </div>
+  <div class="code-wrap">
+    <code class="block">php -m</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Install missing extensions with <code>sudo apt install php8.3-extension_name</code>.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ FPM ISSUES ═══════════════ -->
+<div class="section" id="sec-fpm" data-cat="fpm">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">⚡</span>
+  <div class="sec-meta">
+    <div class="sec-title">FPM Issues</div>
+    <div class="sec-sub">PHP-FPM process manager configuration and performance issues</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">2</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="fpm">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check FPM Process Status</div>
+      <div class="qcard-tags">
+        <span class="tag tag-fpm">FPM</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>FPM Status</strong>
+    Verify PHP-FPM processes are running.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo systemctl status php8.3-fpm</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If not running, start with <code>sudo systemctl start php8.3-fpm</code> and check logs for errors.
+  </div>
+</div>
+
+<div class="qcard" data-tags="fpm">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check FPM Pool Configuration</div>
+      <div class="qcard-tags">
+        <span class="tag tag-fpm">FPM</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Pool Config</strong>
+    Check PHP-FPM pool configuration for performance tuning.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo cat /etc/php/8.3/fpm/pool.d/www.conf</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Adjust pm.max_children, pm.start_servers, etc., based on server resources and restart FPM.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ OS ISSUES ═══════════════ -->
+<div class="section" id="sec-os" data-cat="os">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">💻</span>
+  <div class="sec-meta">
+    <div class="sec-title">OS Issues</div>
+    <div class="sec-sub">Operating system level problems, updates, and system configuration</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">3</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="os">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check System Updates</div>
+      <div class="qcard-tags">
+        <span class="tag tag-os">OS</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Update Check</strong>
+    Check for available system updates.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo apt update && apt list --upgradable</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Apply updates with <code>sudo apt upgrade</code> during maintenance windows.
+  </div>
+</div>
+
+<div class="qcard" data-tags="os">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check System Logs</div>
+      <div class="qcard-tags">
+        <span class="tag tag-os">OS</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>System Logs</strong>
+    View system journal for errors and warnings.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo journalctl -p err -n 20</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    Investigate and resolve logged errors, which may indicate hardware or software issues.
+  </div>
+</div>
+
+<div class="qcard" data-tags="os">
+  <div class="qcard-hdr">
+    <span class="qcard-num">3</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Firewall Status</div>
+      <div class="qcard-tags">
+        <span class="tag tag-os">OS</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Firewall</strong>
+    Check UFW firewall status and rules.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo ufw status</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Allow necessary ports with <code>sudo ufw allow port_number</code> and enable with <code>sudo ufw enable</code>.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ KERNEL ISSUES ═══════════════ -->
+<div class="section" id="sec-kernel" data-cat="kernel">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">🧠</span>
+  <div class="sec-meta">
+    <div class="sec-title">Kernel Issues</div>
+    <div class="sec-sub">Kernel-related problems, modules, and system stability</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">2</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="kernel">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Kernel Version</div>
+      <div class="qcard-tags">
+        <span class="tag tag-kernel">Kernel</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Kernel Info</strong>
+    Display current kernel version and details.
+  </div>
+  <div class="code-wrap">
+    <code class="block">uname -a</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Update kernel if needed with <code>sudo apt install linux-generic</code> and reboot.
+  </div>
+</div>
+
+<div class="qcard" data-tags="kernel">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check Loaded Kernel Modules</div>
+      <div class="qcard-tags">
+        <span class="tag tag-kernel">Kernel</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Modules</strong>
+    List all loaded kernel modules.
+  </div>
+  <div class="code-wrap">
+    <code class="block">lsmod</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    Load missing modules with <code>sudo modprobe module_name</code> or add to /etc/modules for persistence.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ PHPMYADMIN ISSUES ═══════════════ -->
+<div class="section" id="sec-pma" data-cat="pma">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">🗄️</span>
+  <div class="sec-meta">
+    <div class="sec-title">phpMyAdmin Issues</div>
+    <div class="sec-sub">phpMyAdmin installation, configuration, and access problems</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">2</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="pma">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check phpMyAdmin Installation</div>
+      <div class="qcard-tags">
+        <span class="tag tag-pma">phpMyAdmin</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Installation Check</strong>
+    Verify phpMyAdmin files are present and accessible.
+  </div>
+  <div class="code-wrap">
+    <code class="block">ls -la /var/www/phpmyadmin/</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    If missing, reinstall phpMyAdmin or check web server configuration for correct document root.
+  </div>
+</div>
+
+<div class="qcard" data-tags="pma">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check phpMyAdmin Configuration</div>
+      <div class="qcard-tags">
+        <span class="tag tag-pma">phpMyAdmin</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Config Check</strong>
+    Verify phpMyAdmin configuration file.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo cat /var/www/phpmyadmin/pma/config.inc.php</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    Ensure database credentials are correct and blowfish_secret is set for cookie authentication.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ PERMISSIONS ═══════════════ -->
+<div class="section" id="sec-perm" data-cat="perm">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">🔑</span>
+  <div class="sec-meta">
+    <div class="sec-title">Development User Permissions</div>
+    <div class="sec-sub">File permissions, ownership, and access control for development users</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">3</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="perm">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check File Permissions</div>
+      <div class="qcard-tags">
+        <span class="tag tag-perm">Permissions</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Permission Check</strong>
+    Check permissions on web directory.
+  </div>
+  <div class="code-wrap">
+    <code class="block">ls -la /var/www/html/</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    Set proper permissions with <code>sudo chown -R www-data:www-data /var/www/html</code> and <code>sudo chmod -R 755 /var/www/html</code>.
+  </div>
+</div>
+
+<div class="qcard" data-tags="perm">
+  <div class="qcard-hdr">
+    <span class="qcard-num">2</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Add User to Sudo Group</div>
+      <div class="qcard-tags">
+        <span class="tag tag-perm">Permissions</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Sudo Access</strong>
+    Grant sudo privileges to development user.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo usermod -aG sudo username</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Solution</strong>
+    User needs to log out and back in for group changes to take effect.
+  </div>
+</div>
+
+<div class="qcard" data-tags="perm">
+  <div class="qcard-hdr">
+    <span class="qcard-num">3</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Check SELinux/AppArmor Status</div>
+      <div class="qcard-tags">
+        <span class="tag tag-perm">Permissions</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Security Modules</strong>
+    Check if SELinux or AppArmor is blocking access.
+  </div>
+  <div class="code-wrap">
+    <code class="block">sudo apparmor_status</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="warn">
+    <strong>Solution</strong>
+    If AppArmor is enforcing, check profiles with <code>sudo aa-status</code> and adjust as needed.
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════════ INSTALLATION ═══════════════ -->
+<div class="section" id="sec-install" data-cat="install">
+<div class="sec-hdr" onclick="togSec(this)">
+  <span class="sec-icon">📦</span>
+  <div class="sec-meta">
+    <div class="sec-title">Installation Instructions</div>
+    <div class="sec-sub">Complete installation script for Nginx, PHP, MariaDB, Redis, OpenSearch, and phpMyAdmin</div>
+  </div>
+  <span class="sec-arr">▼</span>
+  <span class="sec-qcount has-q">1</span>
+</div>
+<div class="sec-body">
+<div class="qcard" data-tags="install">
+  <div class="qcard-hdr">
+    <span class="qcard-num">1</span>
+    <div class="qcard-meta">
+      <div class="qcard-title">Complete LEMP Stack Installation</div>
+      <div class="qcard-tags">
+        <span class="tag tag-install">Installation</span>
+      </div>
+    </div>
+  </div>
+  <div class="use-case">
+    <strong>Full Setup</strong>
+    Install and configure Nginx, PHP 8.3, MariaDB, Redis, OpenSearch, phpMyAdmin, and Composer.
+  </div>
+  <div class="code-wrap">
+    <code class="block">#!/bin/bash
+
+set -e
+
+echo "================= SYSTEM UPDATE ================="
+sudo apt update -y
+sudo apt upgrade -y
+
+echo "================= INSTALL NGINX ================="
+
+cd /tmp
+wget -q http://nginx.org/keys/nginx_signing.key
+gpg --dearmor &lt; nginx_signing.key | sudo tee /usr/share/keyrings/nginx.gpg &gt; /dev/null
+
+echo "deb [signed-by=/usr/share/keyrings/nginx.gpg] http://nginx.org/packages/mainline/ubuntu jammy nginx" | sudo tee /etc/apt/sources.list.d/nginx.list
+
+sudo apt update -y
+sudo apt install nginx -y
+sudo systemctl enable nginx
+sudo systemctl restart nginx
+nginx -v
+
+echo "================= INSTALL PHP 8.3 ================="
+
+sudo apt install software-properties-common -y
+sudo add-apt-repository ppa:ondrej/php -y
+sudo apt update -y
+
+sudo apt install -y \
+php8.3-fpm php8.3-cli php8.3-common php8.3-mysql \
+php8.3-opcache php8.3-gd php8.3-intl php8.3-curl \
+php8.3-mbstring php8.3-zip php8.3-xml php8.3-soap \
+php8.3-bcmath php8.3-dev
+
+sudo systemctl enable php8.3-fpm
+sudo systemctl restart php8.3-fpm
+
+# PHP tuning
+sudo sed -i 's/max_execution_time = .*/max_execution_time = 18000/' /etc/php/8.3/fpm/php.ini
+sudo sed -i 's/memory_limit = .*/memory_limit = 2048M/' /etc/php/8.3/fpm/php.ini
+sudo sed -i 's/upload_max_filesize = .*/upload_max_filesize = 64M/' /etc/php/8.3/fpm/php.ini
+sudo sed -i 's/post_max_size = .*/post_max_size = 64M/' /etc/php/8.3/fpm/php.ini
+
+sudo systemctl restart php8.3-fpm
+php -v
+
+echo "================= INSTALL OPENSEARCH 2.11.0 ================="
+
+curl -o- https://artifacts.opensearch.org/publickeys/opensearch.pgp | \
+gpg --dearmor | sudo tee /usr/share/keyrings/opensearch.gpg &gt; /dev/null
+
+echo "deb [signed-by=/usr/share/keyrings/opensearch.gpg] https://artifacts.opensearch.org/releases/bundle/opensearch/2.x/apt stable main" | \
+sudo tee /etc/apt/sources.list.d/opensearch-2.x.list
+
+sudo apt update -y
+sudo apt install opensearch=2.11.0 -y
+
+sudo systemctl daemon-reload
+sudo systemctl enable opensearch
+sudo systemctl start opensearch
+
+sudo systemctl status opensearch --no-pager
+
+echo "================= INSTALL REDIS 7.2.1 ================="
+
+sudo apt install lsb-release curl gpg -y
+
+curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/redis.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | \
+sudo tee /etc/apt/sources.list.d/redis.list
+
+sudo apt update -y
+sudo apt install redis=7.2.1* redis-server=7.2.1* -y
+
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+
+redis-server --version
+redis-cli ping
+
+echo "================= INSTALL PHPMYADMIN ================="
+
+sudo mkdir -p /var/www/phpmyadmin
+cd /var/www/phpmyadmin
+
+sudo wget -q https://files.phpmyadmin.net/phpMyAdmin/5.2.1/phpMyAdmin-5.2.1-all-languages.tar.gz
+sudo tar -xzf phpMyAdmin-5.2.1-all-languages.tar.gz
+sudo mv phpMyAdmin-5.2.1-all-languages pma
+sudo chown -R www-data:www-data /var/www/phpmyadmin
+
+echo "================= INSTALL COMPOSER ================="
+
+cd /tmp
+curl -sS https://getcomposer.org/installer | php
+sudo mv composer.phar /usr/local/bin/composer
+
+composer --version
+
+echo "================= INSTALLATION COMPLETE ================="</code>
+    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+  </div>
+  <div class="tip">
+    <strong>Usage</strong>
+    Save this script as install.sh, make it executable with <code>chmod +x install.sh</code>, and run with <code>sudo ./install.sh</code>. This installs a complete LEMP stack with additional tools.
+  </div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script>
+let activeFilters = new Set();
+
+function togSec(hdr) {
+  const body = hdr.nextElementSibling;
+  const arr = hdr.querySelector('.sec-arr');
+  body.classList.toggle('open');
+  arr.classList.toggle('open');
+}
+
+function toggleFilter(btn) {
+  const filter = btn.dataset.filter;
+  if (activeFilters.has(filter)) {
+    activeFilters.delete(filter);
+    btn.classList.remove('on');
+  } else {
+    activeFilters.add(filter);
+    btn.classList.add('on');
+  }
+  filterContent();
+}
+
+function filterContent() {
+  const sections = document.querySelectorAll('.section');
+  const qcards = document.querySelectorAll('.qcard');
+  let visibleCount = 0;
+
+  sections.forEach(sec => {
+    const cat = sec.dataset.cat;
+    const hasVisibleCards = Array.from(sec.querySelectorAll('.qcard')).some(card => {
+      const tags = card.dataset.tags.split(' ');
+      const matches = activeFilters.size === 0 || tags.some(tag => activeFilters.has(tag));
+      card.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+      return matches;
+    });
+    sec.style.display = hasVisibleCards ? '' : 'none';
+  });
+
+  document.getElementById('stats').textContent = visibleCount + ' commands loaded';
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  filterContent();
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+  filterContent();
+});
+
+function setActive(link) {
+  document.querySelectorAll('.nav-item, .mobile-nav a').forEach(item => item.classList.remove('active'));
+  link.classList.add('active');
+}
+
+function copyCode(btn) {
+  const code = btn.previousElementSibling.textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// Initialize
+filterContent();
+</script>
+
+</body>
+</html></content>
+<parameter name="filePath">/workspaces/devops-kb/linux-troubleshooting.html
